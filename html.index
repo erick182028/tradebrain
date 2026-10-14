@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gerry's Brain | Byrne Building Services</title>
+<style>
+:root{
+ --bg:#f4f7f9;
+ --card:#ffffff;
+ --text:#213547;
+ --muted:#6b7280;
+ --primary:#0f766e;
+ --danger:#dc2626;
+ --border:#dbe3ea;
+}
+*{box-sizing:border-box}
+body{
+ margin:0;
+ font-family:system-ui,-apple-system,sans-serif;
+ background:var(--bg);
+ color:var(--text);
+}
+header{
+ background:var(--primary);
+ color:white;
+ padding:16px;
+ text-align:center;
+}
+header h1{margin:0;font-size:24px}
+header p{margin:4px 0 0;font-size:13px;opacity:.9}
+nav{
+ display:flex;
+ gap:8px;
+ padding:10px;
+ background:white;
+ position:sticky;
+ top:0;
+ border-bottom:1px solid var(--border);
+}
+nav button{
+ flex:1;
+ border:0;
+ padding:12px;
+ border-radius:10px;
+ background:#e7f5f4;
+ color:var(--primary);
+ font-weight:600;
+}
+nav button.active{
+ background:var(--primary);
+ color:white;
+}
+.view{display:none;padding:12px}
+.view.active{display:block}
+.card{
+ background:var(--card);
+ border-radius:14px;
+ padding:14px;
+ margin-bottom:12px;
+ box-shadow:0 2px 6px rgba(0,0,0,.05);
+}
+label{
+ display:block;
+ margin:8px 0 4px;
+ font-size:13px;
+ font-weight:600;
+}
+input,select,textarea{
+ width:100%;
+ padding:10px;
+ border:1px solid var(--border);
+ border-radius:8px;
+}
+textarea{min-height:70px}
+.primary{
+ background:var(--primary);
+ color:white;
+ border:0;
+ padding:12px;
+ border-radius:10px;
+ width:100%;
+ margin-top:10px;
+ font-weight:bold;
+}
+.job{
+ border-left:6px solid #22c55e;
+}
+.overdue{
+ border-left-color:var(--danger);
+ background:#fff2f2;
+}
+.small{font-size:12px;color:var(--muted)}
+.price{
+ font-size:22px;
+ font-weight:bold;
+ color:var(--primary);
+}
+.queue-actions{
+ display:flex;
+ gap:8px;
+ margin-top:8px;
+}
+.queue-actions button{
+ flex:1;
+ border:0;
+ padding:10px;
+ border-radius:8px;
+}
+.approve{
+ background:#16a34a;
+ color:white;
+}
+.stats{
+ display:grid;
+ grid-template-columns:1fr 1fr;
+ gap:10px;
+}
+.stat{
+ background:white;
+ border-radius:12px;
+ padding:14px;
+ text-align:center;
+}
+.stat h3{
+ margin:0;
+ font-size:26px;
+ color:var(--primary);
+}
+.red{color:var(--danger)}
+</style>
+</head>
+<body>
+
+<header>
+<h1>Gerry's Brain</h1>
+<p>Byrne Building Services • Pricing Queue Alpha</p>
+</header>
+
+<nav>
+<button class="tab active" onclick="showView('office',this)">Office</button>
+<button class="tab" onclick="showView('gerry',this)">Gerry</button>
+<button class="tab" onclick="showView('sandra',this)">Sandra</button>
+</nav>
+
+<div id="office" class="view active">
+<div class="card">
+<h3>Log Finished Job</h3>
+
+<label>Customer</label>
+<input id="customer">
+
+<label>Job Type</label>
+<select id="jobType">
+<option>Electrical</option>
+<option>Plumbing</option>
+<option>Maintenance</option>
+<option>Commercial Fit-Out</option>
+</select>
+
+<label>Date Done</label>
+<input type="date" id="dateDone">
+
+<label>Hours</label>
+<input type="number" id="hours">
+
+<label>Materials (€)</label>
+<input type="number" id="materials">
+
+<label>Note</label>
+<textarea id="note"></textarea>
+
+<button class="primary" onclick="addJob()">Save Job</button>
+</div>
+</div>
+
+<div id="gerry" class="view"></div>
+
+<div id="sandra" class="view"></div>
+
+<script>
+const seedData = [
+{customer:"Tesco Express",type:"Electrical",dateDone:"2026-09-14",hours:6,materials:120,note:"Lighting repair",price:null},
+{customer:"Kildare Hotel",type:"Plumbing",dateDone:"2026-09-18",hours:5,materials:90,note:"Leak repair",price:null},
+{customer:"Naas Retail Park",type:"Electrical",dateDone:"2026-09-23",hours:8,materials:240,note:"Fuse board",price:null},
+{customer:"Oak School",type:"Maintenance",dateDone:"2026-09-27",hours:4,materials:60,note:"General maintenance",price:null},
+{customer:"Green Pharmacy",type:"Plumbing",dateDone:"2026-10-01",hours:3,materials:45,note:"Pipe replacement",price:null},
+{customer:"Local Office Hub",type:"Commercial Fit-Out",dateDone:"2026-10-03",hours:10,materials:350,note:"New installation",price:null},
+{customer:"Food Warehouse",type:"Electrical",dateDone:"2026-10-08",hours:7,materials:180,note:"Emergency callout",price:null},
+{customer:"Medical Centre",type:"Maintenance",dateDone:"2026-10-11",hours:2,materials:25,note:"Inspection",price:null}
+];
+
+const pricingHistory = {
+"Electrical":850,
+"Plumbing":620,
+"Maintenance":390,
+"Commercial Fit-Out":1850
+};
+
+let jobs = JSON.parse(localStorage.getItem("gerrysBrainJobs")) || seedData;
+
+function save(){
+ localStorage.setItem("gerrysBrainJobs",JSON.stringify(jobs));
+ render();
+}
+
+function showView(id,btn){
+ document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));
+ document.querySelectorAll(".tab").forEach(b=>b.classList.remove("active"));
+ document.getElementById(id).classList.add("active");
+ btn.classList.add("active");
+}
+
+function daysWaiting(date){
+ const done = new Date(date);
+ const today = new Date();
+ return Math.floor((today-done)/(1000*60*60*24));
+}
+
+function suggestedPrice(job){
+ return pricingHistory[job.type] || Math.round(job.hours*75+job.materials*1.2);
+}
+
+function renderGerry(){
+ const container=document.getElementById("gerry");
+
+ const waiting=jobs
+ .filter(j=>!j.price)
+ .sort((a,b)=>new Date(a.dateDone)-new Date(b.dateDone));
+
+ container.innerHTML="<h3>Pricing Queue</h3>";
+
+ waiting.forEach((job,index)=>{
+ let wait=daysWaiting(job.dateDone);
+ container.innerHTML+=`
+ <div class="card job ${wait>3?'overdue':''}">
+ <strong>${job.customer}</strong><br>
+ <span class="small">${job.type} • ${wait} day(s) waiting</span>
+ <div class="price">€${suggestedPrice(job)}</div>
+ <input id="price${index}" value="${suggestedPrice(job)}">
+ <div class="queue-actions">
+ <button class="approve" onclick="approve('${job.customer}',${index})">Approve</button>
+ </div>
+ </div>`;
+ });
+
+ if(waiting.length===0){
+  container.innerHTML += "<div class='card'>No jobs waiting for pricing.</div>";
+ }
+}
+
+function approve(customer,index){
+ const waiting=jobs
+ .filter(j=>!j.price)
+ .sort((a,b)=>new Date(a.dateDone)-new Date(b.dateDone);
+
+ const job=waiting[index];
+ const value=parseFloat(document.getElementById("price"+index).value);
+
+ const original=jobs.find(j=>
+ j.customer===job.customer &&
+ j.dateDone===job.dateDone
+ );
+
+ original.price=value;
+ save();
+}
+
+function renderSandra(){
+ const container=document.getElementById("sandra");
+
+ const waiting=jobs.filter(j=>!j.price);
+
+ let cash=waiting.reduce((sum,j)=>sum+suggestedPrice(j),0);
+ let overdue=waiting.filter(j=>daysWaiting(j.dateDone)>3).length;
+
+ container.innerHTML=`
+ <div class="stats">
+ <div class="stat">
+ <h3>${waiting.length}</h3>
+ Jobs Waiting
+ </div>
+ <div class="stat">
+ <h3 class="${overdue?'red':''}">${overdue}</h3>
+ Over 3 Days
+ </div>
+ </div>
+
+ <div class="card">
+ <h3>Cash Tied Up</h3>
+ <div class="price">€${cash.toLocaleString()}</div>
+ </div>
+ `;
+
+ waiting
+ .sort((a,b)=>new Date(a.dateDone)-new Date(b.dateDone))
+ .forEach(job=>{
+ const wait=daysWaiting(job.dateDone);
+ container.innerHTML+=`
+ <div class="card ${wait>3?'overdue':''}">
+ <strong>${job.customer}</strong><br>
+ ${job.type}<br>
+ <span class="small">${wait} day(s) waiting</span><br>
+ <strong>Potential Invoice: €${suggestedPrice(job)}</strong>
+ </div>`;
+ });
+}
+
+function render(){
+ renderGerry();
+ renderSandra();
+}
+
+function addJob(){
+ const job={
+ customer:customer.value,
+ type:jobType.value,
+ dateDone:dateDone.value,
+ hours:Number(hours.value||0),
+ materials:Number(materials.value||0),
+ note:note.value,
+ price:null
+ };
+
+ if(!job.customer || !job.dateDone){
+   alert("Enter customer and date.");
+   return;
+ }
+
+ jobs.push(job);
+ save();
+
+ customer.value="";
+ hours.value="";
+ materials.value="";
+ note.value="";
+
+ alert("Job logged and sent to Gerry's queue.");
+}
+
+render();
+</script>
+
+</body>
+</html>
